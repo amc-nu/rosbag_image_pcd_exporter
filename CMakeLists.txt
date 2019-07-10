@@ -13,7 +13,7 @@ find_package(OpenCV REQUIRED)
 find_package(Qt5Core REQUIRED)
 
 catkin_package(
-        DEPENDS PCL                                #Non-catkin CMake projects
+        DEPENDS OpenCV                                #Non-catkin CMake projects
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall ${CMAKE_CXX_FLAGS}")
@@ -31,3 +31,9 @@ target_link_libraries(image_pointcloud_exporter PRIVATE
         ${PCL_LIBRARIES}
         ${OpenCV_LIBRARIES}
         )
+
+install(TARGETS image_pointcloud_exporter
+   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+   )
