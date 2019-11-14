@@ -130,10 +130,10 @@ void ImageCloudDataExport::Run()
   ros::NodeHandle private_node_handle("~");
 
   std::string image_src, points_src;
-  private_node_handle.param<std::string>("image_src", image_src, "/image_raw");
+  private_node_handle.param<std::string>("image_src", image_src, "image_raw");
   ROS_INFO("[ImageCloudDataExport] image_src: %s", image_src.c_str());
 
-  private_node_handle.param<std::string>("points_src", points_src, "/points_raw");
+  private_node_handle.param<std::string>("points_src", points_src, "points_raw");
   ROS_INFO("[ImageCloudDataExport] points_src: %s", points_src.c_str());
   //cloud_sub_ = node_handle_.subscribe(points_src, 10, &ImageCloudDataExport::VelodyneLidarCallback, this);
   //image_sub_ = node_handle_.subscribe(image_src, 10, &ImageCloudDataExport::ImageCallback, this);
