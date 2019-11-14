@@ -43,10 +43,10 @@ public:
 private:
 
   ros::NodeHandle node_handle_;
-  //ros::Subscriber cloud_sub_;
-  //ros::Subscriber image_sub_;
-  message_filters::Subscriber<sensor_msgs::PointCloud2> *cloud_sub_;
-  message_filters::Subscriber<sensor_msgs::Image> *image_sub_;
+  ros::Subscriber cloud_sub_;
+  ros::Subscriber image_sub_;
+  message_filters::Subscriber<sensor_msgs::PointCloud2> *cloud_sync_sub_;
+  message_filters::Subscriber<sensor_msgs::Image> *image_sync_sub_;
 
   typedef
   message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::Image> SyncPolicyT;
@@ -54,9 +54,8 @@ private:
   message_filters::Synchronizer<SyncPolicyT>
     *data_synchronizer_;
 
-
-
-  int frame_counter_;
+  size_t image_frame_counter_, cloud_frame_counter_;
+  bool sync_topics_;
   int leading_zeros;
   std::string path_pointcloud_str_, path_image_str_;
 
@@ -71,7 +70,8 @@ private:
 ImageCloudDataExport::ImageCloudDataExport() :
   node_handle_("~")
 {
-  frame_counter_ = 0;
+  image_frame_counter_ = 0;
+  cloud_frame_counter_ = 0;
 }
 
 
@@ -80,11 +80,15 @@ void ImageCloudDataExport::ImageCallback(const sensor_msgs::ImageConstPtr &in_im
   cv_bridge::CvImagePtr cv_image = cv_bridge::toCvCopy(in_image_msg, sensor_msgs::image_encodings::BGR8);
   cv::Mat current_image = cv_image->image;
 
-  std::string string_counter = std::to_string(frame_counter_);
+  std::string string_counter = std::to_string(image_frame_counter_);
   std::string file_path = path_image_str_ + "image_" + std::string(leading_zeros - string_counter.length(), '0') +
                           string_counter + ".jpg";
 
   cv::imwrite(file_path, current_image);
+  if(!sync_topics_)
+  {
+    image_frame_counter_++;
+  }
 
 }
 
@@ -96,7 +100,8 @@ ImageCloudDataExport::SyncedDataCallback(
   ROS_INFO("[ImageCloudDataExport] Frame Synced: %d", in_image_msg->header.stamp.sec);
   VelodyneLidarCallback(in_sensor_cloud);
   ImageCallback(in_image_msg);
-  frame_counter_++;
+  cloud_frame_counter_++;
+  image_frame_counter_++;
 }
 
 void ImageCloudDataExport::VelodyneLidarCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud)
@@ -104,11 +109,11 @@ void ImageCloudDataExport::VelodyneLidarCallback(const sensor_msgs::PointCloud2C
   pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*in_sensor_cloud, *velodyne_cloud_ptr);
 
-  std::string string_counter = std::to_string(frame_counter_);
+  std::string string_counter = std::to_string(cloud_frame_counter_);
   std::string file_path =
     path_pointcloud_str_ + "scan_" + std::string(leading_zeros - string_counter.length(), '0') + string_counter;
 
-  std::ofstream pointcloud_file(file_path + ".txt");
+  /*std::ofstream pointcloud_file(file_path + ".txt");
   if (!pointcloud_file.fail())
   {
     pointcloud_file << velodyne_cloud_ptr->points.size() << std::endl;
@@ -119,9 +124,13 @@ void ImageCloudDataExport::VelodyneLidarCallback(const sensor_msgs::PointCloud2C
                       << std::endl;
     }
     pointcloud_file.close();
-  }
+  }*/
   //save PCD file as well
-  //pcl::io::savePCDFileASCII(file_path + ".pcd", *velodyne_cloud_ptr);
+  pcl::io::savePCDFileASCII(file_path + ".pcd", *velodyne_cloud_ptr);
+  if(!sync_topics_)
+  {
+    cloud_frame_counter_++;
+  }
 }
 
 
@@ -135,23 +144,30 @@ void ImageCloudDataExport::Run()
 
   private_node_handle.param<std::string>("points_src", points_src, "points_raw");
   ROS_INFO("[ImageCloudDataExport] points_src: %s", points_src.c_str());
-  //cloud_sub_ = node_handle_.subscribe(points_src, 10, &ImageCloudDataExport::VelodyneLidarCallback, this);
-  //image_sub_ = node_handle_.subscribe(image_src, 10, &ImageCloudDataExport::ImageCallback, this);
 
+  private_node_handle.param<bool>("sync_topics", sync_topics_, false);
+  ROS_INFO("[ImageCloudDataExport] sync_topics: %d", sync_topics_);
 
-  cloud_sub_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
-                                                                         points_src,
-                                                                         1);
-  image_sub_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle_,
-                                                                   image_src,
-                                                                   1);
-  data_synchronizer_ =
-    new message_filters::Synchronizer<SyncPolicyT>(SyncPolicyT(10),
-                                                   *cloud_sub_,
-                                                   *image_sub_);
-  data_synchronizer_->registerCallback(
-    boost::bind(&ImageCloudDataExport::SyncedDataCallback, this, _1, _2));
-
+  if(!sync_topics_)
+  {
+    cloud_sub_ = node_handle_.subscribe(points_src, 10, &ImageCloudDataExport::VelodyneLidarCallback, this);
+    image_sub_ = node_handle_.subscribe(image_src, 10, &ImageCloudDataExport::ImageCallback, this);
+  }
+  else
+  {
+    cloud_sync_sub_ = new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_handle_,
+                                                                           points_src,
+                                                                           1);
+    image_sync_sub_ = new message_filters::Subscriber<sensor_msgs::Image>(node_handle_,
+                                                                     image_src,
+                                                                     1);
+    data_synchronizer_ =
+        new message_filters::Synchronizer<SyncPolicyT>(SyncPolicyT(10),
+                                                       *cloud_sync_sub_,
+                                                       *image_sync_sub_);
+    data_synchronizer_->registerCallback(
+        boost::bind(&ImageCloudDataExport::SyncedDataCallback, this, _1, _2));
+  }
 
   time_t rawtime;
   struct tm *timeinfo;
