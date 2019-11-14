@@ -15,9 +15,10 @@ The exported data will be saved under the ${HOME} directory of the user under th
  The files under `image` and `pointcloud` will be named in numerical sequence base 0, padded with upto 6 zeros (i.e. 000001.pcd or 000001.jpg).
  
  ## Topic Subscription
- 
- * `image_raw` image data
- * `points_raw` point cloud data
+ |Param|Default Value|Description|
+ |---|---|---|
+ |`image_src`|`image_raw`|image data|
+ |`points_src`|`points_raw`|point cloud data|
  
  ## How to run
  
