@@ -16,7 +16,7 @@ catkin_package(
         DEPENDS OpenCV                                #Non-catkin CMake projects
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O2 -Wall ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_STANDARD 11)
 
 include_directories(
         ${catkin_INCLUDE_DIRS}
@@ -31,6 +31,10 @@ target_link_libraries(image_pointcloud_exporter PRIVATE
         ${PCL_LIBRARIES}
         ${OpenCV_LIBRARIES}
         )
+
+install(DIRECTORY launch/
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+   )
 
 install(TARGETS image_pointcloud_exporter
    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
