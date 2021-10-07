@@ -19,6 +19,7 @@ The exported data will be saved under the ${HOME} directory of the user under th
  |---|---|---|
  |`image_src`|`image_raw`|image data|
  |`points_src`|`points_raw`|point cloud data|
+ |`sync`|`False`|Whether or not to require synchronized topics. If set to `True`, the timestamps from both the image and cloud must match. When `False`, the data will be processed as it arrives.|
  
  ## How to run
  
