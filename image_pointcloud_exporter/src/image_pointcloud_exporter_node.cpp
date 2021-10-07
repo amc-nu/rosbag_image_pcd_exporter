@@ -59,7 +59,7 @@ private:
   int leading_zeros;
   std::string path_pointcloud_str_, path_image_str_;
 
-  void VelodyneLidarCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud);
+  void LidarCloudCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud);
 
   void ImageCallback(const sensor_msgs::ImageConstPtr &in_image_msg);
 
@@ -68,7 +68,7 @@ private:
 };
 
 ImageCloudDataExport::ImageCloudDataExport() :
-  node_handle_("~")
+  node_handle_()
 {
   image_frame_counter_ = 0;
   cloud_frame_counter_ = 0;
@@ -98,16 +98,16 @@ ImageCloudDataExport::SyncedDataCallback(
   const sensor_msgs::ImageConstPtr &in_image_msg)
 {
   ROS_INFO("[ImageCloudDataExport] Frame Synced: %d", in_image_msg->header.stamp.sec);
-  VelodyneLidarCallback(in_sensor_cloud);
+  LidarCloudCallback(in_sensor_cloud);
   ImageCallback(in_image_msg);
   cloud_frame_counter_++;
   image_frame_counter_++;
 }
 
-void ImageCloudDataExport::VelodyneLidarCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud)
+void ImageCloudDataExport::LidarCloudCallback(const sensor_msgs::PointCloud2ConstPtr &in_sensor_cloud)
 {
-  pcl::PointCloud<pcl::PointXYZI>::Ptr velodyne_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::fromROSMsg(*in_sensor_cloud, *velodyne_cloud_ptr);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::fromROSMsg(*in_sensor_cloud, *cloud_ptr);
 
   std::string string_counter = std::to_string(cloud_frame_counter_);
   std::string file_path =
@@ -116,17 +116,17 @@ void ImageCloudDataExport::VelodyneLidarCallback(const sensor_msgs::PointCloud2C
   /*std::ofstream pointcloud_file(file_path + ".txt");
   if (!pointcloud_file.fail())
   {
-    pointcloud_file << velodyne_cloud_ptr->points.size() << std::endl;
-    for (size_t i = 0; i < velodyne_cloud_ptr->points.size(); i++)
+    pointcloud_file << cloud_ptr->points.size() << std::endl;
+    for (size_t i = 0; i < cloud_ptr->points.size(); i++)
     {
-      pointcloud_file << velodyne_cloud_ptr->points[i].y << " " << velodyne_cloud_ptr->points[i].z << " "
-                      << velodyne_cloud_ptr->points[i].x << " " << int(velodyne_cloud_ptr->points[i].intensity)
+      pointcloud_file << cloud_ptr->points[i].y << " " << cloud_ptr->points[i].z << " "
+                      << cloud_ptr->points[i].x << " " << int(cloud_ptr->points[i].intensity)
                       << std::endl;
     }
     pointcloud_file.close();
   }*/
   //save PCD file as well
-  pcl::io::savePCDFileASCII(file_path + ".pcd", *velodyne_cloud_ptr);
+  pcl::io::savePCDFileBinaryCompressed(file_path + ".pcd", *cloud_ptr);
   if(!sync_topics_)
   {
     cloud_frame_counter_++;
@@ -150,7 +150,7 @@ void ImageCloudDataExport::Run()
 
   if(!sync_topics_)
   {
-    cloud_sub_ = node_handle_.subscribe(points_src, 10, &ImageCloudDataExport::VelodyneLidarCallback, this);
+    cloud_sub_ = node_handle_.subscribe(points_src, 10, &ImageCloudDataExport::LidarCloudCallback, this);
     image_sub_ = node_handle_.subscribe(image_src, 10, &ImageCloudDataExport::ImageCallback, this);
   }
   else
